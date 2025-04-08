@@ -4,20 +4,16 @@ TECH STACK
 
 Frontend
 - Next.js (React) with TypeScript for type safety.
-- UI Library: Chakra UI, Material-UI, Tailwind CSS, etc.
+- UI Library: Chakra UI
 - EXIF Parsing: “exif-js” or “ExifReader”.
 - Optional image compression/resizing (e.g., “browser-image-compression”).
 
 Backend
 - Next.js API Routes (serverless) or Node.js + Express.
-- OpenAI Node.js library (“openai”) for LLM calls.
-- Supabase or Firebase SDK for DB/auth integration.
+- OpenAI Node.js library (openai v4 or higher) for LLM calls.
 
 DB / Storage
 - Supabase
   - PostgreSQL + file storage + authentication
-- (Alternative) Firebase
-  - Firestore (NoSQL) + Firebase Storage
-  - Managed auth, serverless integration
 - Optionally integrate an image optimization service (Cloudinary, Imgix).
 

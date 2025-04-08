@@ -6,34 +6,46 @@ Local Setup
 1. Install Node.js (version 16+).
 2. Create a Next.js project (“npx create-next-app” or similar).
 3. Add necessary packages:
-   - UI library (Chakra UI, Tailwind, etc.)
+   - UI Library
+      - Chakra UI (installed via npm install @chakra-ui/react @emotion/react @emotion/styled framer-motion)
    - EXIF library (exif-js, ExifReader)
    - OpenAI client (openai)
    - DB integration (Supabase or Firebase)
-4. Obtain OpenAI API key from https://platform.openai.com, store in .env file or environment variables.
-5. Connect to Supabase or Firebase:
-   - For Supabase, set SUPABASE_URL, SUPABASE_KEY in .env.
-   - For Firebase, set up config values (API key, project ID, etc.).
+4. OpenAI
+- openai package (npm install openai@latest), version 4 or higher
+5. Database
+   - Supabase (npm install @supabase/supabase-js)
 6. (Optional) ESLint, Prettier for code quality.
 
+
 Project Structure Example
-my-travel-app/
-├─ pages/
-│   ├─ index.tsx (Home)
-│   ├─ upload.tsx
-│   ├─ grouping.tsx
-│   ├─ story.tsx
-│   ├─ share/[id].tsx (Shared page)
-│   └─ api/
-│       ├─ generateStory.ts (OpenAI calls)
-│       ├─ saveRecord.ts
-│       └─ ...
-├─ components/
-├─ lib/ (shared logic)
-├─ utils/ (helper funcs, EXIF/time/distance calculations)
+trip_track/
 ├─ public/
-├─ .env
+├─ src/
+│   ├─ app/
+│   │   ├─ index.tsx
+│   │   ├─ upload.tsx            (Photo Upload Page)
+│   │   ├─ grouping.tsx          (Photo Metadata Analysis & Grouping)
+│   │   ├─ group-info.tsx        (Group Information Input)
+│   │   ├─ ai-generation.tsx      (AI Travel Log Generation)
+│   │   ├─ edit-log.tsx          (Travel Log Review/Editing)
+│   │   ├─ share/[id].tsx        (Shared Read-Only Page)
+│   │   └─ api/
+│   │          ├─ generateLog.ts    (Calls OpenAI)
+│   │          ├─ saveRecord.ts     (Saves user data)
+│   │          └─ ...
+│   ├─ components/
+│   │    ├─ PhotoUpload.tsx
+│   │    ├─ GroupList.tsx
+│   │    └─ ...
+│   ├─ lib/
+│   │    ├─ groupingAlgorithm.ts  (Time/location grouping logic)
+│   │    └─ openai.ts  (OpenAI package)
+│   ├─ utils/
+│          ├─ exifHelpers.ts        (EXIF reading helpers)
+│          └─ ...
 └─ package.json
+
 
 Running Locally
 - npm run dev to start the Next.js dev server

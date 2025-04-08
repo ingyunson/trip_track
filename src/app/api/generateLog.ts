@@ -1,17 +1,13 @@
 // pages/api/generateLog.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { OpenAI } from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // make sure it's set in .env or environment variables
-});
+import { openai } from '../../lib/openai';
+import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const { groupData } = req.body;
 
-    // Prepare the messages for your chat completion
-    const messages = [
+    const messages: ChatCompletionMessageParam[] = [
       {
         role: 'system',
         content: 'You are an AI specialized in summarizing travel itineraries...',
@@ -22,19 +18,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     ];
 
-    // Call the Chat Completions endpoint with the new 4.x style:
+    // Chat Completions request using OpenAI 4.x
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-3.5-turbo', // or 'gpt-4', if you have access
       messages,
       max_tokens: 1500,
       temperature: 0.7,
     });
 
-    // Extract the AI-generated text
     const generatedText = response.choices?.[0]?.message?.content;
-    return res.status(200).json({ text: generatedText });
+    res.status(200).json({ text: generatedText });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ error: 'AI generation failed' });
+    res.status(500).json({ error: 'AI generation failed' });
   }
 }

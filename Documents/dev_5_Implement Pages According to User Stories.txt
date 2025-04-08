@@ -1,0 +1,64 @@
+(1) Photo Upload Page (upload.tsx)
+Acceptance Criteria: AC1.1 – AC1.4
+
+Key tasks:
+- Add a drag-and-drop or file input element.
+- Validate file format and size.
+- Read EXIF data (date/time, GPS).
+- Collect metadata into a state or context so it can be passed on.
+- Provide visual feedback (“Upload complete”, “Unsupported file” errors, etc.).
+- “Next” button to navigate to grouping page.
+
+(2) Photo Grouping Page (grouping.tsx)
+Acceptance Criteria: AC2.1 – AC2.3
+
+Key tasks:
+- Implement a grouping algorithm (see “POLICIES AND ALGORITHMS FOR ACCEPTANCE CRITERIA.txt”).
+- Show grouped photos in UI, allow manual split/merge.
+- Store updated group data (in React context or a global store).
+- “Proceed” button to go to group information input.
+
+(3) Group Information Input Page (group-info.tsx)
+Acceptance Criteria: AC3.1 – AC3.4
+
+Key tasks:
+- List each group, let the user provide place name, rating, notes.
+- Optionally use a geocoding API to suggest place names if you want automatic place detection.
+- Validate required fields (place name) and handle optional fields (review).
+- “Generate AI Travel Log” button to navigate to the AI generation page.
+
+(4) AI Travel Log Generation Page (ai-generation.tsx)
+Acceptance Criteria: AC4.1 – AC4.3
+
+Key tasks:
+- Pass all group data to the backend (API route) that calls OpenAI.
+- Display a loading indicator until the AI returns the summary.
+- Show the generated text for quick preview.
+- “Edit Travel Log” button to go next.
+
+(5) Travel Log Review and Editing Page (edit-log.tsx)
+Acceptance Criteria: AC5.1 – AC5.3
+
+Key tasks:
+- Display the AI-generated text in an editable component.
+- Let the user make final changes, insert photos, or reformat text.
+- On “Save,” store the final text in the database.
+- Show a “Share to SNS” button once saved.
+
+(6) Sharing and Social Media Integration
+Could be an action on edit-log.tsx or a dedicated page.
+
+Acceptance Criteria: AC6.1 – AC6.3
+
+Key tasks:
+- On “Share,” generate a unique link (e.g., /share/abc123) by writing to the DB and marking isPublic = true.
+- If you want mobile share dialogs, use the Web Share API (fallback for non-supporting browsers).
+- Provide quick icons/links for Twitter, Facebook, etc.
+
+(7) Shared Read-Only Page (/share/[id].tsx)
+Acceptance Criteria: AC7.1 – AC7.3
+
+Key tasks:
+- Load the travel log from the DB based on [id].
+- Check isPublic. If false, show 404 or “Not found.”
+- Render the final text, photos, etc. in a mobile-responsive layout.
