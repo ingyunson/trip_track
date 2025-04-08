@@ -1,0 +1,70 @@
+============================================================
+1. SERVICE OVERVIEW
+============================================================
+
+Purpose:
+- A web-based platform that lets users upload, organize, and share travel photos in a timeline/space-based structure.
+- Automatically detects photo shooting time and location (EXIF metadata), then groups photos accordingly.
+- Offers AI-generated travel summaries, allowing users to easily share a cohesive travel story on social media.
+
+Key Use Cases:
+1. Quickly upload bulk travel photos taken on a smartphone.
+2. Automatically group photos by time/date and geographic location.
+3. Let users add place names and brief reviews or ratings for each grouped segment.
+4. Generate a complete travel log in chronological and spatial order, integrating user feedback.
+5. Use a Large Language Model (LLM) to create an AI-generated narrative of the entire trip.
+6. Share the final narrative and photos on social media through a unique link or direct integration (Web Share API, etc.).
+
+Target Audience:
+- Travelers who want an easy way to create and share personal travel stories online.
+- Individuals who prefer an automated approach (EXIF-driven grouping + AI summary) but still want editing options.
+
+============================================================
+2. CORE FEATURES
+============================================================
+
+1. Photo Upload & EXIF Extraction
+   - Users select or drag-and-drop multiple images (JPEG/HEIC) for upload.
+   - The system reads EXIF metadata (e.g., DateTimeOriginal, GPS) on the client side to identify timestamps and locations.
+
+2. Automatic Grouping (Time & Location)
+   - Photos are automatically clustered based on shooting times and geographic proximity (e.g., “within 2 hours and 5 km”).
+   - Users can manually split or merge groups if needed.
+
+3. Group Annotation & Reviews
+   - Each group is assigned a place name or landmark (e.g., “Eiffel Tower”) and a short review or rating.
+   - Optional reverse geocoding to suggest place names from GPS coordinates.
+
+4. Timeline/Spatial Organization
+   - The entire trip is presented as a timeline, with day-by-day or location-by-location breakdown.
+   - Users see a visual structure of their trip, combining date/time with map-based or region-based grouping.
+
+5. AI-Generated Travel Log
+   - The user’s grouped data (dates, places, reviews) is sent to an LLM (e.g., OpenAI GPT) for a cohesive, narrative-style travel summary.
+   - Produces an initial draft that the user can edit and refine.
+
+6. Editor & Finalization
+   - An editing interface allows users to adjust the AI-generated text, add extra details, or insert photos within the text.
+   - Changes are saved so the user can revisit and update at any time.
+
+7. Sharing & Social Media Integration
+   - Generate a unique shareable link (e.g., https://service.com/share/123abc).
+   - Allows easy posting to social media via Web Share API or direct links to Twitter/Facebook/etc.
+   - Public or private sharing options (isPublic flag).
+
+8. Read-Only Shared Page
+   - Anyone accessing the share link can view the compiled travel log, AI-generated narrative, and relevant photos in a user-friendly page.
+   - Mobile-responsive design for consistent viewing across devices.
+
+============================================================
+3. BENEFITS & DIFFERENTIATORS
+============================================================
+
+- Eliminates manual sorting of travel photos by date or location; EXIF data automates the process.
+- Creates a travel journal or blog-like summary without extensive effort, thanks to LLM-based text generation.
+- One-click social media sharing with visually appealing layouts and open graph metadata for link previews.
+- Potential for future expansion:
+  - User authentication and personalized “My Trips” dashboard.
+  - Advanced sharing settings (e.g., share only with certain friends).
+  - Additional AI features like caption generation per photo, sentiment analysis, etc.
+

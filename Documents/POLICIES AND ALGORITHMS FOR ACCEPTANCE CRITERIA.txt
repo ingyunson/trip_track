@@ -1,0 +1,164 @@
+POLICIES AND ALGORITHMS FOR ACCEPTANCE CRITERIA
+
+Below are notable policies (rules, constraints) and algorithms (pseudo-code) for key acceptance criteria. You may expand them for full implementation details.
+
+3.1 PHOTO UPLOAD (AC1 SERIES)
+[AC1.1] File Format & Size Validation
+Policy:
+- Allowed extensions: [".jpg", ".jpeg", ".png", ".heic"] (example).
+- Max size: 10MB (for instance). Show an error if exceeded.
+
+Algorithm (pseudo-code):
+function handleFileUpload(files):
+    allowedExtensions = [".jpg", ".jpeg", ".png", ".heic"]
+    maxSize = 10 * 1024 * 1024
+
+    for file in files:
+        ext = getFileExtension(file)
+        if ext not in allowedExtensions:
+            showError("Unsupported file type.")
+            continue
+
+        if file.size > maxSize:
+            showError("File too large (max 10MB).")
+            continue
+
+        readEXIF(file)  // proceed to EXIF extraction
+
+[AC1.2] EXIF Metadata Extraction
+Policy:
+- Use a client-side EXIF library (ExifReader, exif-js).
+- If no EXIF found, mark the file as missing metadata but allow partial use.
+
+Algorithm (pseudo-code):
+function readEXIF(file):
+    ExifReader.load(file).then(metadata => {
+        if metadata has GPS info:
+            location = extractCoordinates(metadata.GPS)
+        else:
+            location = null
+
+        if metadata has DateTimeOriginal:
+            timeStamp = parseDate(metadata.DateTimeOriginal)
+        else:
+            timeStamp = file.lastModifiedDate or null
+
+        storeInState({
+           file: file,
+           location: location,
+           timeStamp: timeStamp
+        })
+    }).catch(error => {
+        showError("Error reading EXIF.")
+    })
+
+---
+
+3.2 METADATA ANALYSIS & GROUPING (AC2.1)
+Policy:
+- If time distance <= 2 hours and location distance <= 5 km, photos belong to the same group.
+- Distances/thresholds can be adjusted. Different days or large gaps imply a new group.
+
+Algorithm (example, greedy approach):
+function groupPhotos(photos):
+    sort photos by timeStamp ascending
+    currentGroup = []
+    groups = []
+
+    for photo in photos:
+        if currentGroup is empty:
+            currentGroup.add(photo)
+        else:
+            lastPhoto = currentGroup.last()
+            if timeDistance(photo, lastPhoto) <= 2 hours
+               AND locationDistance(photo, lastPhoto) <= 5 km:
+                currentGroup.add(photo)
+            else:
+                groups.add(currentGroup)
+                currentGroup = [photo]
+
+    if currentGroup not empty:
+        groups.add(currentGroup)
+
+    return groups
+
+---
+
+3.3 GROUP INFO INPUT (AC3.2)
+Policy:
+- Place name is required. Rating/Review is optional.
+- Offensive language check can be implemented if needed.
+
+Algorithm (pseudo-code):
+function validateGroupInputs(group):
+    if group.placeName is empty:
+        return "Place name is required."
+    if containsProfanity(group.reviewText):
+        return "Inappropriate language detected."
+    return "OK"
+
+---
+
+3.4 AI TRAVEL LOG GENERATION (AC4.2)
+Policy:
+- Use OpenAI GPT-3.5 or GPT-4. Pass itinerary details in the prompt.
+- Watch token usage if there is a large volume of group data; consider summarizing if needed.
+
+Algorithm (pseudo-code):
+function generateTravelStory(groupData):
+    prompt = buildPrompt(groupData) 
+    response = openai.createChatCompletion({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1500,
+      temperature: 0.7
+    })
+    return response.data.choices[0].message.content
+
+---
+
+3.5 TRAVEL LOG REVIEW & EDITING (AC5.2)
+Policy:
+- Provide basic text editing. Possibly integrate a WYSIWYG editor.
+- On save, store the updated text in the database.
+
+Algorithm (pseudo-code):
+function saveEditedStory(content):
+    dbUpdate(userId, travelId, { storyText: content })
+    showMessage("Saved Successfully")
+
+---
+
+3.6 SNS SHARING (AC6.1)
+Policy:
+- Generate a unique ID/slug (e.g., “abc123”) at final save, store it along with isPublic=true in the DB.
+- Return the share link, e.g., “https://domain.com/share/abc123”.
+
+Algorithm (pseudo-code):
+function createShareLink(travelId):
+    uniqueId = generateUUID()
+    dbUpdate(travelId, { shareId: uniqueId, isPublic: true })
+    return "https://domain.com/share/" + uniqueId
+
+---
+
+3.7 SHARED READ-ONLY PAGE (AC7.1)
+Policy:
+- Only display the travel log if isPublic === true. Otherwise, show “Not found.”
+
+Algorithm (pseudo-code, SSR approach):
+function getServerSideProps(context):
+    shareId = context.params.shareId
+    travelData = dbSelectByShareId(shareId)
+
+    if (!travelData || !travelData.isPublic):
+        return { notFound: true }
+
+    return {
+        props: {
+            story: travelData.storyText,
+            photos: travelData.photoList,
+            ...
+        }
+    }
+

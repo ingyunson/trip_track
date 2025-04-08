@@ -1,0 +1,31 @@
+============================================================
+SYSTEM ARCHITECTURE OVERVIEW
+============================================================
+
+Conceptual Diagram:
+
+( User's Browser )
+  |  React/Next.js Frontend (UI, routing, state management, client-side EXIF metadata extraction, etc.)
+  v
+[ Serverless Backend (Next.js API Routes or a minimal Node.js server) ]
+  |  - AI summary requests (OpenAI API)
+  |  - DB/storage (Supabase/Firebase)
+  |  - Authentication, shareable link generation
+  v
+( Database / Storage / BaaS )
+  - Supabase (PostgreSQL + Storage) or
+    Firebase (Firestore + Storage)
+  - OpenAI API (GPT-3.5 / GPT-4, etc.)
+
+Key Points:
+1. Frontend
+   - Built with Next.js (React). Handles file uploads, EXIF parsing on the client, group display, user input, AI summary display, editing, and sharing.
+2. Server/Backend
+   - Serverless functions (Vercel, Netlify) or a lightweight Node.js server.
+   - Calls OpenAI API for text generation, handles DB and authentication logic.
+3. Data Storage (BaaS)
+   - Supabase (PostgreSQL-based), or Firebase (Firestore). Stores user data, trip records, images, etc.
+4. External AI
+   - OpenAI API for generating travel summaries.
+   - Keep the API key securely on the backend.
+

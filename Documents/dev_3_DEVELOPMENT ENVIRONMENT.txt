@@ -1,0 +1,45 @@
+============================================================
+DEVELOPMENT ENVIRONMENT
+============================================================
+
+Local Setup
+1. Install Node.js (version 16+).
+2. Create a Next.js project (“npx create-next-app” or similar).
+3. Add necessary packages:
+   - UI library (Chakra UI, Tailwind, etc.)
+   - EXIF library (exif-js, ExifReader)
+   - OpenAI client (openai)
+   - DB integration (Supabase or Firebase)
+4. Obtain OpenAI API key from https://platform.openai.com, store in .env file or environment variables.
+5. Connect to Supabase or Firebase:
+   - For Supabase, set SUPABASE_URL, SUPABASE_KEY in .env.
+   - For Firebase, set up config values (API key, project ID, etc.).
+6. (Optional) ESLint, Prettier for code quality.
+
+Project Structure Example
+my-travel-app/
+├─ pages/
+│   ├─ index.tsx (Home)
+│   ├─ upload.tsx
+│   ├─ grouping.tsx
+│   ├─ story.tsx
+│   ├─ share/[id].tsx (Shared page)
+│   └─ api/
+│       ├─ generateStory.ts (OpenAI calls)
+│       ├─ saveRecord.ts
+│       └─ ...
+├─ components/
+├─ lib/ (shared logic)
+├─ utils/ (helper funcs, EXIF/time/distance calculations)
+├─ public/
+├─ .env
+└─ package.json
+
+Running Locally
+- npm run dev to start the Next.js dev server
+- Visit http://localhost:3000 in a browser.
+
+Testing and QA
+- Jest, React Testing Library, or Cypress for testing.
+- ESLint + Prettier for linting and formatting.
+

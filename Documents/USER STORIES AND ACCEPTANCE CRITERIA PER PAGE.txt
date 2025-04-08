@@ -1,0 +1,137 @@
+USER STORIES AND ACCEPTANCE CRITERIA PER PAGE
+
+(1) PHOTO UPLOAD PAGE
+User Story:
+“As a traveler who just returned from a trip, I want to upload all the photos I took on my smartphone at once and quickly prepare the data for time/location analysis. Uploading should be convenient with clear status feedback.”
+
+Acceptance Criteria:
+[AC1.1] File Format and Size Validation
+- Only allow supported file formats (e.g., JPG/HEIC) to be uploaded (via drag-and-drop or a file selection button).
+- If the file size exceeds a set maximum (e.g., 10MB), show a warning and cancel the upload.
+
+[AC1.2] EXIF Metadata Extraction
+- On upload, the client extracts EXIF metadata (using libraries like exif-js or ExifReader).
+- If a file has EXIF data (shooting time, GPS coordinates), display a success marker. If not, show a warning.
+
+[AC1.3] Upload Progress and Error Feedback
+- The user sees upload progress and status (e.g., “Extracting metadata...”).
+- If an error occurs, an error message is shown (e.g., “Upload failed,” “Unsupported file type”).
+
+[AC1.4] Proceed to Next Step
+- Once validation and EXIF parsing are complete for all files, enable the “Next” button to navigate to the Group Analysis page.
+
+---
+
+(2) PHOTO METADATA ANALYSIS & GROUPING PAGE
+User Story:
+“As a user, I want the service to automatically group my photos by shooting time and location. I also want to split or merge groups myself if the automatic grouping is incorrect.”
+
+Acceptance Criteria:
+[AC2.1] Grouping Algorithm
+- After uploading completes, run a client-side algorithm that clusters photos based on time/loc constraints (e.g., “within 2 hours and within 5 km”).
+- Display the grouped results in the UI (e.g., “Group1 (Paris 10:00-12:00), Group2 (Eiffel Tower 12:30-13:00)”).
+
+[AC2.2] Split/Merge Groups
+- Users can manually split or merge groups if needed.
+- Splitting a group divides photos by time/location range or user selection.
+- Merging combines adjacent groups into one.
+
+[AC2.3] Interaction & Preview
+- Clicking a group shows a thumbnail preview of its photos.
+- A “Proceed (Group Info Input)” button appears once grouping is set.
+
+---
+
+(3) GROUP INFORMATION INPUT PAGE
+User Story:
+“I want to add place names and reviews/ratings to each automatically generated photo group so my trip is recorded with meaningful information.”
+
+Acceptance Criteria:
+[AC3.1] Display Group List
+- Display grouped results (group name, cover photo, brief location/time info).
+- The user can expand each group to input place name, rating, etc.
+
+[AC3.2] Place Name & Evaluation Input
+- Each group requires a place name (e.g., “Eiffel Tower”) and optional evaluation (review text, rating).
+- If the required input is missing, show a warning and disable the “AI Summary” button.
+
+[AC3.3] Automatic Reverse-Geocoding (Optional)
+- (Optional) Convert GPS coordinates to a suggested place name (“Paris Eiffel Tower area”) via a geocoding API.
+- The user can accept or edit the suggestion.
+
+[AC3.4] Data Save & Next Step
+- After all inputs are complete, “Generate AI Travel Log” becomes enabled and navigates to the AI Generation page.
+
+---
+
+(4) AI TRAVEL LOG GENERATION PAGE
+User Story:
+“I want the system to generate a travel log by summarizing my itinerary, locations, and ratings automatically with AI, so I only need minimal input.”
+
+Acceptance Criteria:
+[AC4.1] Summary Generation Request
+- Clicking the “AI Travel Log” button sends the group data (dates, places, evaluations) to the server.
+- A loading indicator (“AI is generating your travel log...”) is shown during the request.
+
+[AC4.2] LLM API Call and Response Handling
+- The backend calls an OpenAI GPT model to produce a written summary. Upon success, it returns the text with a 200 status.
+- If the request fails, display an error and allow the user to retry.
+
+[AC4.3] Display Travel Log Draft
+- The AI-generated text is shown to the user, who can preview it before the final edit.
+
+---
+
+(5) TRAVEL LOG REVIEW AND EDITING PAGE
+User Story:
+“I want to review and refine the AI-generated draft to correct any mistakes and add detail before finalizing my travel log.”
+
+Acceptance Criteria:
+[AC5.1] Load the AI-Generated Content
+- Load the AI-generated text into a text editor field.
+- Basic formatting (e.g., date headers) is applied for readability.
+
+[AC5.2] User Editing Features
+- Users can edit text, add or remove paragraphs, and apply styling (bold, italic).
+- Optionally, they can insert photos or group cover images into the text.
+
+[AC5.3] Save Content
+- Clicking “Save” updates the data in the database.
+- Once saved, the “Share to SNS” button becomes available.
+
+---
+
+(6) TRAVEL LOG SNS SHARING
+User Story:
+“I want to quickly share my final travel log to my social media (Facebook, Twitter, etc.) so others can view it by just clicking a link.”
+
+Acceptance Criteria:
+[AC6.1] Generate Shareable URL
+- Clicking “Share to SNS” sends the final log data to the server, which returns a unique ID or slug (e.g., https://travelapp.com/share/abc123).
+- The record is marked public so anyone with the link can view it.
+
+[AC6.2] Web Share API Integration
+- On mobile, navigator.share() triggers the native share dialog.
+- Fallback for non-supported browsers includes links to Twitter/Facebook, etc.
+
+[AC6.3] Open Graph Meta Tags
+- The shareable page is served with an OG image, title, and short description for preview cards.
+- On success, a confirmation (e.g., “Your travel log was shared!”) is shown.
+
+---
+
+(7) SHARED (READ-ONLY) PAGE
+User Story:
+“Other people who see my shared link should be able to view my travel log in a well-formatted page with text and photos from any device.”
+
+Acceptance Criteria:
+[AC7.1] Public Page Rendering
+- Accessing /share/:id fetches the matching travel log data from the database.
+- If isPublic is true, it shows the travel log content. Otherwise, show a 404 or “Not found.”
+
+[AC7.2] Responsive Design
+- The page layout should adapt to desktop, mobile, and tablet screen sizes.
+
+[AC7.3] Edit Access
+- The share page is read-only for general visitors.
+- The author (logged in) may see an “Edit” button, if implemented.

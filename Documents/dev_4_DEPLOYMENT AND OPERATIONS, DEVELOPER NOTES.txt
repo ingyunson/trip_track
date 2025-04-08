@@ -1,0 +1,51 @@
+============================================================
+DEPLOYMENT AND OPERATIONS
+============================================================
+
+Deployment Platform
+- Vercel (recommended for Next.js)
+  - Auto-build/deploy upon Git push
+  - Built-in serverless API routes
+- Alternatives: Netlify, AWS Amplify, etc.
+
+Database / Storage
+- Supabase
+  - Hosted Postgres, integrated authentication, storage
+  - Use @supabase/supabase-js
+- Firebase
+  - Firestore (NoSQL), Firebase Storage
+  - Use firebase SDK
+- Store environment secrets in Vercel Environment Variables.
+
+Security & Environment Variables
+- Keep OpenAI API keys, DB credentials out of version control.
+- .env or project settings in Vercel (or Netlify).
+
+CI/CD
+- Vercel provides automatic deployments from GitHub/GitLab.
+- Preview deployments for testing branches.
+
+Scalability and Monitoring
+- Serverless functions scale automatically.
+- Upgrade DB tier on Supabase/Firebase if traffic grows.
+- Optional logging/monitoring (Sentry) to track errors.
+
+============================================================
+KEY DEVELOPER NOTES
+============================================================
+1. EXIF metadata extraction happens client-side (JS library).
+2. AI summary generation is done via the backend (serverless function calling OpenAI).
+3. DB schema typically includes:
+   - Users (optional if you want authentication)
+   - Trips (or “Records”) for storing each travel log
+   - Photos or references to photo files in storage
+4. Sharing feature: 
+   - /share/:id fetches data from DB
+   - If isPublic is true, the log is visible to anyone with the link
+5. Image handling:
+   - Potential resizing or compression before upload
+   - Supabase Storage or Firebase Storage for hosting
+6. Deployment:
+   - Commit to main → Vercel auto-build
+   - Store secrets as environment variables
+
