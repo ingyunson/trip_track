@@ -1,0 +1,142 @@
+[TABLE: users]
+- COLUMNS:
+a) id (uuid) [PRIMARY KEY, DEFAULT uuid_generate_v4()]
+b) email (text) [UNIQUE, NOT NULL]
+c) display_name (text, optional)
+d) created_at (timestamp) [DEFAULT now()]
+
+- RELATIONSHIPS: 
+• No inbound references; “users” is a top-level entity.
+
+
+[TABLE: trips]
+- COLUMNS:
+a) id (uuid) [PRIMARY KEY, DEFAULT uuid_generate_v4()]
+b) user_id (uuid) [FOREIGN KEY → users.id, ON DELETE CASCADE]
+c) title (text, optional)
+d) created_at (timestamp) [DEFAULT now()]
+e) is_public (boolean) [DEFAULT false]
+f) share_id (text) [UNIQUE, nullable]: Used for generating a shareable URL (e.g., /share/abcdef)
+
+- RELATIONSHIPS: 
+• Each trip belongs to one user (user_id → users.id). 
+• A user can have many trips.
+
+
+[TABLE: groups]
+- COLUMNS:
+a) id (uuid) [PRIMARY KEY, DEFAULT uuid_generate_v4()]
+b) trip_id (uuid) [FOREIGN KEY → trips.id, ON DELETE CASCADE]
+c) group_name (text, optional)
+d) rating (integer, optional)
+e) review (text, optional)
+f) created_at (timestamp) [DEFAULT now()]
+g) sort_order (integer, optional): Controls manual ordering within a trip
+h) earliest_time_stamp (timestamp, optional): Stores the earliest time among all photos in this group
+i) representative_location (text, optional): Summarizes the group’s main location name
+
+- RELATIONSHIPS: 
+• Each group belongs to one trip (trip_id → trips.id). 
+• A trip can have many groups.
+
+
+[TABLE: photos]
+- COLUMNS:
+a) id (uuid) [PRIMARY KEY, DEFAULT uuid_generate_v4()]
+b) group_id (uuid) [FOREIGN KEY → groups.id, ON DELETE CASCADE]
+c) image_url (text) [NOT NULL]: Path or URL of the image in storage
+d) time_stamp (timestamp, optional): Extracted from EXIF
+e) latitude (numeric, optional)
+f) longitude (numeric, optional)
+g) created_at (timestamp) [DEFAULT now()]
+
+- RELATIONSHIPS: 
+• Each photo belongs to one group (group_id → groups.id). 
+• A group can have many photos.
+
+
+[TABLE: logs]
+- COLUMNS:
+a) id (uuid) [PRIMARY KEY, DEFAULT uuid_generate_v4()]
+b) group_id (uuid) [FOREIGN KEY → groups.id, ON DELETE CASCADE]
+c) ai_generated_text (text, optional)
+d) edited_text (text, optional)
+e) created_at (timestamp) [DEFAULT now()]
+
+- RELATIONSHIPS: 
+• Each log is linked to exactly one group (group_id → groups.id). 
+• If you add a UNIQUE constraint on group_id, it’s a 1:1 relationship. 
+• A group can have zero or one log, depending on your usage.
+
+- RELATIONSHIP SUMMARY
+• users → trips: One user can have many trips.
+• trips → groups: One trip can have many groups.
+• groups → photos: One group can have many photos.
+• groups → logs: One group can have one log (1:1 if unique group_id).
+
+
+[NOTES]
+- Sorting Groups:
+• Use sort_order (integer) or earliest_time_stamp (timestamp) to specify the display order of groups within a trip.
+• Example query to sort by earliest time:
+```SELECT * FROM groups
+ WHERE trip_id = 'some-trip-id'
+ ORDER BY earliest_time_stamp;```
+
+- Maintaining earliest_time_stamp:
+• Each time you modify photos in a group, update the group’s earliest_time_stamp to the minimum time_stamp among its photos.
+
+- representative_location:
+• Use for a human-readable description (e.g., “Eiffel Tower area”).
+• Could also store lat/long if you prefer numeric coordinates.
+
+- Storing Images:
+• Typically done in Supabase Storage (or external), with photos.image_url capturing the file path / public URL.
+
+- Sharing:
+• share_id in trips is used for generating a shareable link like /share/<share_id>.
+• is_public indicates whether the trip is visible at that link.
+
+Below is a **text-based** summary that you can append to your DATABASE SCHEMA document. It describes the **Row-Level Security (RLS) approach** and **authorization policies** that enforce ownership and public-read logic for each table.
+
+--------------------------------------------------------------------------------
+AUTHORIZATION & RLS POLICIES
+--------------------------------------------------------------------------------
+
+[Overview]
+• Row-Level Security (RLS) is enabled on the trips, groups, photos, and logs tables.
+• Owners can fully manage (read, create, update, delete) only the data that belongs to them.
+   • Ownership is determined by trip.user_id = auth.uid().
+• Public Read is allowed if trips.is_public = true, meaning anyone (including unauthenticated users) can only view (SELECT) the trip, its groups, photos, and logs—but cannot modify them.
+
+[Table-by-Table Summary]
+1. trips Table
+• SELECT: Any user can read a trip if (user_id = auth.uid()) OR (is_public = true).
+• INSERT: Authenticated users can create new trips only if they set user_id = auth.uid().
+• UPDATE: Only the owner (user_id = auth.uid()) can edit.
+• DELETE: Only the owner can delete.
+
+2. groups Table
+• Each group references a parent trip via groups.trip_id.
+• SELECT: Allowed if the parent trip is either owned by auth.uid() or is_public = true.
+• INSERT / UPDATE / DELETE: Only allowed if the parent trip is owned by auth.uid().
+
+3. photos Table
+• Each photo references a parent group (which references a parent trip).
+• SELECT: Allowed if the parent trip is owned by auth.uid() or is_public = true.
+• INSERT / UPDATE / DELETE: Only allowed if the parent trip is owned by auth.uid().
+
+4. logs Table
+• Each log references a parent group (and thus indirectly a parent trip).
+• SELECT: Allowed if the parent trip is owned by auth.uid() or is_public = true.
+• INSERT / UPDATE / DELETE: Only allowed if the parent trip is owned by auth.uid().
+
+[Enforcement Details]
+• RLS Enabled: ALTER TABLE ... ENABLE ROW LEVEL SECURITY; is run for each table.
+• Policies: For each table, four policies (SELECT, INSERT, UPDATE, DELETE) are created to enforce the above logic.
+  • For child tables (groups, photos, logs), the policies often use a subquery or join to check the parent trip.user_id or trip.is_public.
+
+[Summary]
+• Private Trips (is_public = false) are only visible to the trip owner.
+• Public Trips (is_public = true) can be viewed by anyone, but only modified by the owner.
+• Child Tables (groups, photos, logs) require checking the parent trip’s ownership or public status to grant access.

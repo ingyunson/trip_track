@@ -1,5 +1,5 @@
 // lib/openai.ts
-import { OpenAI } from 'openai';
+import OpenAI from 'openai';
 
 /**
  * Create a single OpenAI client instance using version 4.x of the openai package.

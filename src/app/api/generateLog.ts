@@ -1,35 +1,37 @@
-// pages/api/generateLog.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
-import { openai } from '../../lib/openai';
-import { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+// src/app/api/generateLog/route.ts
+import { NextResponse } from 'next/server';
+import { openai } from '@/lib/openaiClient';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function POST(request: Request) {
   try {
-    const { groupData } = req.body;
+    const { groupData } = await request.json();
 
-    const messages: ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: 'You are an AI specialized in summarizing travel itineraries...',
-      },
-      {
-        role: 'user',
-        content: `Please generate a travel story from these groups: ${JSON.stringify(groupData)}`,
-      },
-    ];
+    // Build prompt based on user's trip info
+    const prompt = `
+      Please write a travel summary for the following groups:
+      ${JSON.stringify(groupData, null, 2)}
+    `;
 
-    // Chat Completions request using OpenAI 4.x
+    // Call OpenAI
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', // or 'gpt-4', if you have access
-      messages,
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: prompt }],
       max_tokens: 1500,
       temperature: 0.7,
     });
 
-    const generatedText = response.choices?.[0]?.message?.content;
-    res.status(200).json({ text: generatedText });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'AI generation failed' });
+    const aiContent = response.choices[0]?.message?.content;
+
+    if (!aiContent) {
+      return NextResponse.json({ error: 'No response from AI' }, { status: 500 });
+    }
+
+    // Return the AI-generated text
+    return NextResponse.json({ aiText: aiContent }, { status: 200 });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
 }
