@@ -1,0 +1,170 @@
+============================================================
+BACKEND DESIGN (SERVERLESS API STRUCTURE)
+============================================================
+
+OVERVIEW
+------------------------------------------------------------
+This service uses a minimal backend based on serverless API routes built into Next.js. Each endpoint handles a core part of the trip creation and sharing process, connecting the frontend to the database (Supabase) and external AI (OpenAI API).
+
+All API routes are stateless, receive JSON input, and return JSON responses. Serverless functions handle authentication (if used), database operations, and third-party API calls securely.
+
+============================================================
+API ROUTES & FUNCTION RESPONSIBILITIES
+============================================================
+
+1. /api/trips
+------------------------------------------------------------
+• POST /api/trips
+  - Creates a new trip record with a user ID and optional title.
+• GET /api/trips (optional)
+  - Retrieves a list of trips for the logged-in user.
+• PATCH /api/trips/:id
+  - Updates trip data such as title.
+• DELETE /api/trips/:id
+  - Deletes a trip.
+
+Responsibilities:
+- Communicates with Supabase to insert, update, or delete trip records.
+- Applies RLS so only the owner can edit/delete a trip.
+- Sets up the share_id and is_public flag for sharing.
+
+2. /api/groups
+------------------------------------------------------------
+• POST /api/groups
+  - Creates groups based on client-side grouping logic.
+• PATCH /api/groups/:id
+  - Updates group place name, rating, or review.
+• DELETE /api/groups/:id
+  - Deletes a group.
+
+Responsibilities:
+- Ensures groups are tied to the correct trip.
+- Updates group metadata like earliest_time_stamp and representative_location.
+- Applies RLS via the parent trip's user_id.
+
+3. /api/photos
+------------------------------------------------------------
+• POST /api/photos
+  - Inserts new photo records with URLs and metadata (timestamp, GPS).
+• PATCH /api/photos/:id
+  - Updates metadata if needed.
+• DELETE /api/photos/:id
+  - Removes a photo record.
+
+Responsibilities:
+- Receives uploaded image metadata from the client.
+- Stores file references in Supabase.
+- No actual file upload is handled here; Supabase Storage is used for that.
+- Applies RLS based on the trip group and user_id.
+
+4. /api/logs
+------------------------------------------------------------
+• GET /api/logs/:groupId
+  - Returns AI-generated or edited travel log text for a group.
+• PATCH /api/logs/:groupId
+  - Saves user-edited text back to the database.
+
+Responsibilities:
+- Stores both AI-generated and user-edited text.
+- Associates logs with group_id (1:1 relationship).
+- Applies RLS through parent group → trip → user_id.
+
+5. /api/generateLog
+------------------------------------------------------------
+• POST /api/generateLog
+  - Receives grouped data (places, times, reviews).
+  - Calls OpenAI GPT API to generate a narrative summary.
+  - Returns AI-generated text.
+
+Responsibilities:
+- Constructs a custom GPT prompt using group metadata.
+- Calls the OpenAI API and handles token limits/errors.
+- Returns the draft text to the frontend for preview/editing.
+
+6. /api/share
+------------------------------------------------------------
+• POST /api/share
+  - Marks a trip as public (is_public = true).
+  - Generates a unique slug share_id.
+  - Returns a public URL for sharing.
+
+Responsibilities:
+- Writes is_public = true and share_id to the trips table.
+- Validates that the user owns the trip.
+- Returns a sharable URL (e.g., /share/abc123).
+
+============================================================
+API FILE STRUCTURE (RECOMMENDED)
+============================================================
+src/
+├─ app/
+│   ├─ api/
+│   │   ├─ trips/route.ts
+│   │   ├─ groups/route.ts
+│   │   ├─ photos/route.ts
+│   │   ├─ logs/route.ts
+│   │   ├─ generateLog/route.ts
+│   │   └─ share/route.ts
+
+Each route file contains methods to handle HTTP verbs (GET, POST, PATCH, DELETE).
+
+============================================================
+SERVICE COMMUNICATION FLOW
+============================================================
+
+1. User uploads photo metadata → POST /api/photos
+2. Groups created → POST /api/groups
+3. User inputs place name/review → PATCH /api/groups/:id
+4. Generate log → POST /api/generateLog → OpenAI API
+5. Save edited log → PATCH /api/logs/:groupId
+6. Make trip public → POST /api/share → returns share link
+7. Anyone can view → GET /share/:share_id (via frontend SSR)
+
+============================================================
+MERMAID SEQUENCE FLOW
+============================================================
+
+```
+sequenceDiagram
+    participant U as User Browser (Frontend)
+    participant S as Serverless API (Next.js)
+    participant DB as Supabase DB
+    participant AI as OpenAI API
+
+    U->>S: 1. POST /api/photos (metadata)
+    S->>DB: Insert photo records (RLS enforced)
+
+    U->>S: 2. POST /api/groups (after grouping)
+    S->>DB: Insert new group rows
+
+    U->>S: 3. PATCH /api/groups/:id (update place name, rating)
+    S->>DB: Update group data
+
+    U->>S: 4. POST /api/generateLog
+    S->>DB: (Optional) fetch group info
+    S->>AI: Call OpenAI GPT with group data
+    AI-->>S: Return generated text
+    S-->>U: Send AI-generated text response
+
+    U->>S: 5. PATCH /api/logs/:groupId (save edited text)
+    S->>DB: Update logs table with final text
+
+    U->>S: 6. POST /api/share (make trip public)
+    S->>DB: Update trips (is_public=true, share_id=...)
+    S-->>U: Return share link (e.g. /share/abc123)
+
+    U->>DB: 7. (Public link access) GET /share/abc123
+    DB-->>U: Return trip data if is_public=true
+```
+============================================================ 
+NOTES
+============================================================
+
+Supabase RLS ensures users can only write/read data for trips they own.
+
+All image uploads are handled via Supabase Storage on the frontend.
+
+All API secrets (OpenAI key, DB credentials) are stored in Vercel environment variables.
+
+OpenAI prompts are built from group titles, place names, and reviews, then sent via the server.
+
