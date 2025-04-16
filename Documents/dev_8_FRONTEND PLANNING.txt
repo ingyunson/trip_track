@@ -1,0 +1,277 @@
+============================================================
+FRONTEND PLANNING DOCUMENT
+============================================================
+
+1. OVERVIEW
+------------------------------------------------------------
+This document outlines the frontend design and implementation plan for
+the Trip Track service. It references user stories and acceptance
+criteria, covering how each page will satisfy core features like:
+
+• Bulk photo upload and EXIF extraction
+• Automatic grouping by time/location
+• Place reviews and ratings per group
+• AI-generated travel log
+• Travel log editing and sharing via a unique link
+
+The frontend is built in **Next.js (React + TypeScript)**, with **Chakra UI**
+for styling and **client-side EXIF** metadata extraction. It will
+communicate with a serverless backend that stores data in **Supabase** and
+calls the **OpenAI API** for AI text generation.
+
+============================================================
+2. TECH STACK & DEV ENVIRONMENT
+------------------------------------------------------------
+- **Framework**: Next.js (TypeScript)
+- **UI**: Chakra UI
+- **EXIF Parsing**: "exif-js" or "ExifReader"
+- **Database**: Supabase (Postgres + RLS)
+- **Deployment**: Vercel
+- **AI Calls**: OpenAI (GPT-3.5 or GPT-4)
+
+Project Structure (example):
+src/
+├─ app/
+│   ├─ page.tsx                  (Landing page)
+│   ├─ upload/
+│   │   └─ page.tsx              (Photo Upload Page)
+│   ├─ grouping/
+│   │   └─ page.tsx              (Photo Metadata Analysis & Grouping)
+│   ├─ group-info/
+│   │   └─ page.tsx              (Group Information Input)
+│   ├─ generate-log/
+│   │   └─ page.tsx              (AI Travel Log Generation)
+│   ├─ edit-log/
+│   │   └─ page.tsx              (Travel Log Review/Editing)
+│   ├─ share/
+│   │   └─ [shareId]/
+│   │       └─ page.tsx          (Shared Read-Only Page)
+│   │       └─ SharedTripView.tsx (Shared page component)
+│   └─ api/                      (API routes - just stubs for now)
+│       ├─ photos/route.ts
+│       ├─ groups/route.ts
+│       ├─ generateLog/route.ts
+│       ├─ logs/route.ts
+│       └─ share/route.ts
+├─ components/
+│   ├─ Header.tsx                (Common header)
+│   ├─ FileUploadArea.tsx        (Drag-drop file upload)
+│   ├─ FileStatusList.tsx        (Uploaded files status)
+│   ├─ GroupCard.tsx             (Group display card)
+│   ├─ GroupEditor.tsx           (Group info editor)
+│   ├─ PhotoPicker.tsx           (For selecting photos)
+│   ├─ RichTextEditor.tsx        (For editing travel logs)
+│   ├─ GeneratingAnimation.tsx   (Loading animation)
+│   └─ ShareDialog.tsx           (Sharing modal)
+├─ context/
+│   └─ PhotoContext.tsx          (State management)
+├─ lib/
+│   ├─ supabaseClient.ts         (Supabase client setup)
+│   └─ groupingAlgorithm.ts      (Photo grouping logic)
+└─ utils/
+    ├─ exifUtils.ts              (EXIF parsing helpers)
+    └─ dateUtils.ts              (Date formatting helpers)
+
+Local Development:
+1) Install Node.js 16+,
+2) Run `npm install` (or `yarn`),
+3) `npm run dev` to start the local server at http://localhost:3000.
+
+============================================================
+3. USER STORIES & ACCEPTANCE CRITERIA (FRONTEND IMPACT)
+------------------------------------------------------------
+
+(1) PHOTO UPLOAD PAGE (upload.tsx) — [AC1.1 – AC1.4]
+------------------------------------------------------------
+User Story:
+"As a traveler who just returned from a trip, I want to upload all the
+photos I took, quickly parse their metadata, and prepare for grouping."
+
+Key Requirements:
+• **File Format & Size Validation** (AC1.1)
+• **EXIF Metadata Extraction** (AC1.2)
+• **Upload Progress & Error Feedback** (AC1.3)
+• **Proceed to Next Step** (AC1.4)
+
+Implementation Outline:
+• A file input or drag-and-drop zone that:
+  - Checks file extension and size before reading EXIF.
+  - Extracts EXIF metadata (date/time, GPS) using "exif-js" or "ExifReader".
+  - Displays progress or error messages.
+• Stores the photo metadata in local/global state (e.g., context or
+  Redux) for later grouping.
+• Shows a "Next" button once all photos are processed.
+
+(2) PHOTO METADATA ANALYSIS & GROUPING PAGE (grouping.tsx) — [AC2.1 – AC2.3]
+------------------------------------------------------------
+User Story:
+"As a user, I want the system to group my photos by time/location, but
+I can manually split or merge if needed."
+
+Key Requirements:
+• **Grouping Algorithm** (AC2.1)
+• **Split/Merge Groups** (AC2.2)
+• **Preview & Proceed** (AC2.3)
+
+Implementation Outline:
+• Retrieve photo metadata from the previous step.
+• Run a client-side grouping function (time < 2 hours & distance < 5 km).
+• Display groups in a list or grid.  
+• Provide UI to split or merge groups:
+  - Split: select certain photos to form a new group.
+  - Merge: combine adjacent groups into one.
+• "Proceed" button navigates to group-info.tsx.
+
+(3) GROUP INFORMATION INPUT PAGE (group-info.tsx) — [AC3.1 – AC3.4]
+------------------------------------------------------------
+User Story:
+"I want to add place names, reviews, and ratings to each group so my trip
+is recorded meaningfully."
+
+Key Requirements:
+• **Display Group List** (AC3.1)
+• **Place Name & Evaluation Input** (AC3.2)
+• **Optional Reverse-Geocoding** (AC3.3) (e.g., suggest place name from GPS)
+• **Save & Next** (AC3.4)
+
+Implementation Outline:
+• Render each group in a collapsible component.
+• Provide form fields: "place name" (required), "rating" (optional), "review" (optional).
+• Possibly call a geocoding API if you want automatic place detection.
+• Validate required fields. 
+• On success, enable "Generate AI Travel Log" to move on.
+
+(4) AI TRAVEL LOG GENERATION PAGE (ai-generation.tsx) — [AC4.1 – AC4.3]
+------------------------------------------------------------
+User Story:
+"I want the system to generate a travel log from the group data with minimal effort."
+
+Key Requirements:
+• **Summary Generation Request** (AC4.1)
+• **LLM API Call & Response** (AC4.2)
+• **Display Travel Log Draft** (AC4.3)
+
+Implementation Outline:
+• Collect the group info (place names, reviews, times) into a JSON payload.
+• Send a POST request to /api/generateLog to call OpenAI.  
+• Show a loading spinner or message ("AI is generating your travel log...").
+• Once the AI response arrives, display the text in a read-only preview.
+• Provide a button to proceed to editing (edit-log.tsx).
+
+(5) TRAVEL LOG REVIEW & EDITING PAGE (edit-log.tsx) — [AC5.1 – AC5.3]
+------------------------------------------------------------
+User Story:
+"I want to refine the AI-generated draft with my own edits before finalizing."
+
+Key Requirements:
+• **Load AI-generated Content** (AC5.1)
+• **User Editing Features** (AC5.2)
+• **Save Content** (AC5.3)
+
+Implementation Outline:
+• Fetch the generated log from the database (via /api/logs/:groupId or context).
+• Use a text editor or a styled <textarea>.
+• Allow text edits, photo inserts, etc. (optionally using a rich-text editor).
+• On "Save," update the final text in the DB.
+• Display a "Share to SNS" button once saved.
+
+(6) TRAVEL LOG SNS SHARING — [AC6.1 – AC6.3]
+------------------------------------------------------------
+User Story:
+"I want to share my final travel log on social media with a unique link."
+
+Key Requirements:
+• **Generate Shareable URL** (AC6.1)
+• **Web Share API** (AC6.2)
+• **Open Graph Meta Tags** (AC6.3)
+
+Implementation Outline:
+• On "Share," call `/api/share` with the trip ID. 
+• The backend sets `is_public = true` and creates a `share_id`.  
+• The frontend receives the share URL (e.g., /share/abc123) and shows
+  share icons or a "Copy Link" button.
+• For mobile, attempt `navigator.share()` if supported, otherwise show
+  standard share links (Facebook, Twitter, etc.).
+• For OG meta tags, set them in the Next.js `<head>` if you want a link
+  preview for social media.
+
+(7) SHARED READ-ONLY PAGE (share/[id].tsx) — [AC7.1 – AC7.3]
+------------------------------------------------------------
+User Story:
+"Visitors should see my travel log in a nice read-only format."
+
+Key Requirements:
+• **Public Page Rendering** (AC7.1)
+• **Responsive Design** (AC7.2)
+• **Edit Access** (AC7.3) (optional if user is recognized)
+
+Implementation Outline:
+• Next.js dynamic route: `/share/[id].tsx`.
+• On load, fetch the trip data by `share_id`. 
+  - If `is_public` = true, display content. 
+  - If not, show 404 or "Not found."
+• Style for mobile, tablet, desktop. Possibly a photo gallery or
+  a nicely formatted text + images layout.
+• Editing controls may be hidden unless the owner is logged in
+  (optional extra feature).
+
+============================================================
+4. SUPPORTING LOGIC & LIBRARIES
+------------------------------------------------------------
+
+• **EXIF Metadata Extraction**:
+  - "exif-js" or "ExifReader" in the Photo Upload Page to read date/time, GPS.
+
+• **Grouping Algorithm**:
+  - A function that sorts photos by time and location. 
+  - Merges them if they're within 2 hours & 5 km (configurable).
+
+• **Place Name Input & Geocoding** (optional):
+  - E.g., Google Maps Geocoding or open source geocoder 
+    to suggest location names from GPS.
+
+• **OpenAI Integration**:
+  - An endpoint (POST /api/generateLog) to gather group data, 
+    build a prompt, and call GPT (openai Node.js library).
+  - Client side just hits that endpoint, shows a spinner,
+    then displays the AI response.
+
+• **Share to SNS**:
+  - Use either the Web Share API or fallback share links.
+  - Provide meta tags for better link previews.
+
+============================================================
+5. TESTING & VALIDATION
+------------------------------------------------------------
+
+• **Manual Testing**:
+  1) Upload various images (valid & invalid).
+  2) Verify grouping logic works & that merging/splitting is correct.
+  3) Ensure place name & rating can be saved.
+  4) Check AI generation loads a draft from OpenAI.
+  5) Test editing & final share link.
+
+• **Automated Testing**:
+  - Use Cypress or Playwright for end-to-end tests of the
+    multi-page flow.
+  - Possibly use Jest + React Testing Library for unit or component tests
+    (PhotoUpload, GroupList, etc.).
+
+• **Responsive & Cross-browser**:
+  - Chakra UI helps with responsive design out of the box.
+  - Confirm everything works on mobile Safari/Chrome if you rely on the
+    Web Share API.
+
+============================================================
+6. FINAL NOTES
+------------------------------------------------------------
+• Ensure any credentials (Supabase, OpenAI) are stored in environment
+  variables (e.g., .env.local for local dev, Vercel project settings for
+  production).
+• The entire flow relies on client-side state (or a global store) to pass
+  photo metadata from upload → grouping → group-info → AI generation → final
+  editing. Alternatively, you can persist partial data to Supabase after each step.
+• RLS on the Supabase side ensures only the trip owner can modify data; 
+  for public viewing, trips.is_public = true triggers read-only access.
+
+END OF FRONTEND PLANNING DOCUMENT

@@ -4,14 +4,13 @@ import { openai } from '@/lib/openaiClient';
 
 interface TripGroup {
   id: string;
-  group_name?: string;
-  rating?: number;
-  review?: string;
+  group_name: string;
   earliest_time_stamp?: string;
+  latest_time_stamp?: string;
+  rating?: number | null;
+  review?: string;
   representative_location?: string;
-  // Replace [key: string]: any with a more specific index signature
-  // or remove it if you know all the properties you need
-  [key: string]: string | number | boolean | null | undefined;
+  photo_count?: number;
 }
 
 export async function POST(request: Request) {
@@ -25,7 +24,7 @@ export async function POST(request: Request) {
     // Build a more structured prompt for better results
     const prompt = buildTravelLogPrompt(groupData);
 
-    // Call OpenAI
+    // Call OpenAI (mock in this case)
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: prompt }],
@@ -43,9 +42,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ aiText: aiContent }, { status: 200 });
   } catch (err: unknown) {
     if (err instanceof Error) {
+      console.error('Error generating travel log:', err);
       return NextResponse.json({ error: err.message }, { status: 500 });
+    } else {
+      return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
     }
-    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
 }
 
