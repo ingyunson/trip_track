@@ -20,7 +20,6 @@ import {
   Badge,
 } from '@chakra-ui/react';
 import { 
-  FiCamera, 
   FiMap, 
   FiEdit, 
   FiCpu,

@@ -1,8 +1,9 @@
 // src/app/upload/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import {
   Container,
   VStack,
@@ -12,114 +13,131 @@ import {
   useToast,
   Text
 } from '@chakra-ui/react';
-import Header from '../../components/Header';
+import { nanoid } from 'nanoid';
 import FileUploadArea from '../../components/FileUploadArea';
 import FileStatusList from '../../components/FileStatusList';
 import { usePhotoContext, PhotoMetadata } from '../../context/PhotoContext';
 import { extractExifData, isValidFileType, isValidFileSize } from '../../utils/exifUtils';
+
+// Import Header with no SSR
+const Header = dynamic(() => import('../../components/Header'), { ssr: false });
 
 const UploadPage = () => {
   const router = useRouter();
   const toast = useToast();
   const { photos, addPhotos, updatePhoto, removePhoto, clearPhotos } = usePhotoContext();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [allProcessed, setAllProcessed] = useState(true);
+  const [allProcessed, setAllProcessed] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
 
-  // Reset photos when page loads
+  // Fixed useEffect to check if photos are processed
   useEffect(() => {
-    clearPhotos();
-  }, [clearPhotos]);
+    if (photos.length > 0 && !isProcessing) {
+      const areAllProcessed = photos.every(photo => photo.processed);
+      
+      if (areAllProcessed !== allProcessed) {
+        setAllProcessed(areAllProcessed);
+      }
+    }
+  }, [photos, isProcessing, allProcessed]);
 
-  // Update allProcessed state when photos change
-  useEffect(() => {
-    const stillProcessing = photos.some(photo => !photo.processed);
-    setAllProcessed(!stillProcessing);
-  }, [photos]);
-
-  const handleFilesSelected = async (files: File[]) => {
+  // Add this function to your UploadPage component
+  const handleFilesSelected = useCallback(async (files: File[]) => {
     setIsProcessing(true);
-
-    // Process files in batches to avoid overloading browser
+    
+    const newPhotos = [];
+    
     for (const file of files) {
+      // Validate file type and size
+      if (!isValidFileType(file)) {
+        toast({
+          title: "Invalid file type",
+          description: `${file.name} is not a supported image format.`,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        continue;
+      }
+      
+      if (!isValidFileSize(file)) {
+        toast({
+          title: "Invalid file size",
+          description: `${file.name} exceeds the maximum file size of 10MB.`,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        continue;
+      }
+      
+      // Generate unique ID for the photo
+      const id = nanoid();
+      
+      // Create object URL for thumbnail display
+      const fileUrl = URL.createObjectURL(file);
+      
       try {
-        // Validate file type
-        if (!isValidFileType(file)) {
-          toast({
-            title: "Unsupported file type",
-            description: `${file.name} is not a supported image format. Please use JPG, PNG, or HEIC.`,
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          continue;
-        }
-
-        // Validate file size
-        if (!isValidFileSize(file)) {
-          toast({
-            title: "File too large",
-            description: `${file.name} exceeds the 10MB size limit.`,
-            status: "error",
-            duration: 5000,
-            isClosable: true,
-          });
-          continue;
-        }
-
-        // Create object URL for preview
-        const fileUrl = URL.createObjectURL(file);
-
-        // Add file to state with temporary ID
-        const tempId = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-
-        const newPhoto: PhotoMetadata = {
-          id: tempId,
+        // Extract EXIF data
+        const exifData = await extractExifData(file);
+        
+        newPhotos.push({
+          id,
           file,
           fileName: file.name,
+          fileSize: file.size,
           fileUrl,
-          timeStamp: null,
-          latitude: null,
-          longitude: null,
-          processed: false,
-          processingError: null
-        };
-
-        addPhotos([newPhoto]);
-
-        // Extract EXIF data
-        try {
-          const exifData = await extractExifData(file);
-
-          // Update the photo with EXIF data
-          updatePhoto(tempId, {
-            timeStamp: exifData.timestamp,
-            latitude: exifData.latitude,
-            longitude: exifData.longitude,
-            processed: true
-          });
-        } catch (error) {
-          console.error("EXIF extraction error:", error);
-          updatePhoto(tempId, {
-            processed: true,
-            processingError: "Failed to read EXIF data"
-          });
-        }
+          timeStamp: exifData.timestamp,
+          latitude: exifData.latitude,
+          longitude: exifData.longitude,
+          processed: true,
+          processingError: null,
+          groupId: 'ungrouped'
+        });
+        
       } catch (error) {
-        console.error("File processing error:", error);
-        toast({
-          title: "Error processing file",
-          description: error instanceof Error ? error.message : "An unknown error occurred",
-          status: "error",
-          duration: 5000,
-          isClosable: true,
+        console.error(`Error processing ${file.name}:`, error);
+        newPhotos.push({
+          id,
+          file,
+          fileName: file.name,
+          fileSize: file.size,
+          fileUrl,
+          processed: true,
+          processingError: `Failed to extract metadata: ${error.message}`,
+          groupId: 'ungrouped'
         });
       }
     }
-
+    
+    if (newPhotos.length > 0) {
+      addPhotos(newPhotos);
+    }
+    
     setIsProcessing(false);
-  };
+  }, [addPhotos, toast]);
 
-  const handleNext = () => {
+  // Clean up object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      photos.forEach(photo => {
+        if (photo.fileUrl && photo.fileUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(photo.fileUrl);
+        }
+      });
+    };
+  }, [photos]);
+
+  // Add this function to handle removing photos
+  const handleRemovePhoto = useCallback((id: string) => {
+    const photoToRemove = photos.find(p => p.id === id);
+    if (photoToRemove?.fileUrl && photoToRemove.fileUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(photoToRemove.fileUrl);
+    }
+    removePhoto(id);
+  }, [photos, removePhoto]);
+
+  const handleNext = useCallback(() => {
     if (photos.length === 0) {
       toast({
         title: "No photos",
@@ -130,53 +148,68 @@ const UploadPage = () => {
       });
       return;
     }
+    
+    router.push('/group');
+  }, [photos.length, toast, router]);
 
-    if (!allProcessed) {
+  // Add or modify this function in your component
+  const handleContinue = useCallback(() => {
+    if (photos.length === 0) {
       toast({
-        title: "Processing in progress",
-        description: "Please wait until all photos are processed.",
-        status: "warning",
+        title: "No photos uploaded",
+        description: "Please upload at least one photo to continue.",
+        status: "error",
         duration: 3000,
         isClosable: true,
       });
       return;
     }
-
-    // Navigate to the next page
-    router.push('/grouping');
-  };
+    
+    // Correct route for Next.js App Router
+    router.push('/group-info');
+  }, [photos.length, router, toast]);
 
   return (
     <>
       <Header />
-      <Container maxW="container.md" py={8}>
+      <Container maxW="container.xl" pt={20} pb={10}>
         <VStack spacing={8} align="stretch">
-          <Heading as="h1" size="xl">Upload Your Travel Photos</Heading>
-
-          <Text>
-            Upload your travel photos to get started. We&apos;ll automatically extract location and time information
-            to help organize your trip.
-          </Text>
-
-          <FileUploadArea
+          <Heading as="h1" size="xl" textAlign="center">
+            Upload Your Travel Photos
+          </Heading>
+          
+          <FileUploadArea 
             onFilesSelected={handleFilesSelected}
             isProcessing={isProcessing}
           />
-
-          <FileStatusList
-            photos={photos}
-            onRemovePhoto={removePhoto}
-          />
-
-          {photos.length > 0 && (
-            <Box textAlign="center">
-              <Button
-                colorScheme="teal"
-                size="lg"
-                onClick={handleNext}
-                isDisabled={!allProcessed || photos.length === 0}
+          
+          {/* Only show the FileStatusList during upload process, hide it when showing the final list */}
+          {photos.length > 0 && isProcessing && (
+            <FileStatusList 
+              photos={photos} 
+              onRemovePhoto={handleRemovePhoto} 
+            />
+          )}
+          
+          {/* When upload is complete, show Your Photos section */}
+          {photos.length > 0 && !isProcessing && (
+            <Box>
+              <Heading as="h2" size="md" mb={4}>
+                Your Photos ({photos.length})
+              </Heading>
+              <FileStatusList 
+                photos={photos} 
+                onRemovePhoto={handleRemovePhoto}
+              />
+              <Button 
+                mt={6} 
+                colorScheme="teal" 
+                size="lg" 
+                onClick={handleContinue}
+                isDisabled={photos.length === 0}
+                width="100%"
               >
-                Next: Group Photos
+                {isProcessing ? "Processing..." : "Continue"}
               </Button>
             </Box>
           )}
