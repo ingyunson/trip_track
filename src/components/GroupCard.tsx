@@ -1,7 +1,7 @@
 // src/components/GroupCard.tsx
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Flex,
@@ -18,7 +18,13 @@ import {
   ModalBody,
   ModalCloseButton,
   SimpleGrid,
+  Divider,
+  Tooltip,
+  HStack,
+  Icon,
+  VStack,
 } from '@chakra-ui/react';
+import { FiClock, FiMapPin, FiInfo } from 'react-icons/fi';
 import { PhotoGroup } from '@/lib/groupingAlgorithm';
 
 interface GroupCardProps {
@@ -37,6 +43,48 @@ const GroupCard: React.FC<GroupCardProps> = ({
   isSelected
 }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [coverPhotoUrl, setCoverPhotoUrl] = useState<string | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (group.coverPhoto?.file) {
+      const newCoverPhotoUrl = URL.createObjectURL(group.coverPhoto.file);
+      setCoverPhotoUrl(newCoverPhotoUrl);
+      
+      const newPhotoUrls: Record<string, string> = {};
+      group.photos.forEach(photo => {
+        if (photo.file) {
+          newPhotoUrls[photo.id] = URL.createObjectURL(photo.file);
+        }
+      });
+      setPhotoUrls(newPhotoUrls);
+      
+      return () => {
+        URL.revokeObjectURL(newCoverPhotoUrl);
+        Object.values(newPhotoUrls).forEach(url => URL.revokeObjectURL(url));
+      };
+    }
+  }, [group.coverPhoto, group.photos]);
+
+  // Format coordinates for display
+  const formatCoordinates = (lat: number | null, lng: number | null) => {
+    if (lat === null || lng === null) return "No coordinates";
+    
+    // Format to 6 decimal places (roughly meter precision)
+    return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  };
+
+  // Format time for display
+  const formatTime = (timestamp: Date | null) => {
+    if (!timestamp) return "No timestamp";
+    return timestamp.toLocaleString([], {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   // Format time range for display
   const formatTimeRange = () => {
@@ -89,9 +137,9 @@ const GroupCard: React.FC<GroupCardProps> = ({
           cursor="pointer"
           onClick={onOpen}
         >
-          {group.coverPhoto?.fileUrl ? (
+          {coverPhotoUrl ? ( // Use coverPhotoUrl instead of group.coverPhoto.fileUrl
             <Image
-              src={group.coverPhoto.fileUrl}
+              src={coverPhotoUrl}
               alt={`Group ${index + 1}`}
               width="100%"
               height="100%"
@@ -152,42 +200,81 @@ const GroupCard: React.FC<GroupCardProps> = ({
         </Box>
       </Box>
 
-      {/* Preview Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="xl">
+      {/* Enhanced Preview Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="xl" scrollBehavior="inside">
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Group {index + 1} Photos</ModalHeader>
+        <ModalContent maxW="900px">
+          <ModalHeader>
+            Group {index + 1} Photos
+            <Text fontSize="sm" color="gray.600" mt={1}>
+              {group.photos.length} photos • {formatDate()}
+            </Text>
+          </ModalHeader>
           <ModalCloseButton />
 
           <ModalBody>
-            <SimpleGrid columns={{ base: 2, md: 3 }} spacing={4}>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
               {group.photos.map((photo) => (
                 <Box
                   key={photo.id}
+                  borderWidth="1px"
                   borderRadius="md"
                   overflow="hidden"
-                  height="120px"
+                  boxShadow="sm"
                 >
-                  {photo.fileUrl ? (
-                    <Image
-                      src={photo.fileUrl}
-                      alt={photo.fileName}
-                      width="100%"
-                      height="100%"
-                      objectFit="cover"
-                    />
-                  ) : (
-                    <Flex bg="gray.100" height="100%" alignItems="center" justifyContent="center">
-                      <Text color="gray.400">No Image</Text>
-                    </Flex>
-                  )}
+                  {/* Photo */}
+                  <Box height="200px" overflow="hidden">
+                    {photoUrls[photo.id] ? (
+                      <Image
+                        src={photoUrls[photo.id]}
+                        alt={photo.fileName}
+                        width="100%"
+                        height="100%"
+                        objectFit="cover"
+                      />
+                    ) : (
+                      <Flex bg="gray.100" height="100%" alignItems="center" justifyContent="center">
+                        <Text color="gray.400">No Image</Text>
+                      </Flex>
+                    )}
+                  </Box>
+                  
+                  {/* Metadata */}
+                  <Box p={3}>
+                    <Tooltip label={photo.fileName} placement="top">
+                      <Text fontWeight="medium" isTruncated>
+                        {photo.fileName}
+                      </Text>
+                    </Tooltip>
+                    
+                    <Divider my={2} />
+                    
+                    <VStack align="start" spacing={1}>
+                      <HStack fontSize="sm">
+                        <Icon as={FiClock} color="gray.500" />
+                        <Text>{formatTime(photo.timeStamp)}</Text>
+                      </HStack>
+                      
+                      <HStack fontSize="sm">
+                        <Icon as={FiMapPin} color="gray.500" />
+                        <Text>{formatCoordinates(photo.latitude, photo.longitude)}</Text>
+                      </HStack>
+                      
+                      {photo.processingError && (
+                        <HStack fontSize="sm" color="red.500">
+                          <Icon as={FiInfo} />
+                          <Text>Processing error</Text>
+                        </HStack>
+                      )}
+                    </VStack>
+                  </Box>
                 </Box>
               ))}
             </SimpleGrid>
           </ModalBody>
 
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={onClose}>
+            <Button colorScheme="blue" onClick={onClose}>
               Close
             </Button>
           </ModalFooter>

@@ -113,10 +113,18 @@ export function groupPhotosByTimeAndLocation(
   // Categorize photos based on available metadata
   console.log('===== CATEGORIZING PHOTOS =====');
   const photosWithFullMetadata = validatedPhotos.filter(p => p.timeStamp !== null && 
-                                                      p.latitude !== null && p.longitude !== null);
-  const photosWithTimeNoLocation = validatedPhotos.filter(p => p.timeStamp !== null && 
-                                                       (p.latitude === null || p.longitude === null));
-  const photosWithoutMetadata = validatedPhotos.filter(p => p.timeStamp === null);
+                                                  p.latitude !== null && p.longitude !== null);
+
+// IMPORTANT FIX: Add fileUrl check to debugging output
+console.log('Sample photo fileUrl check:', 
+  photosWithFullMetadata.length > 0 ? 
+  `First photo fileUrl: ${photosWithFullMetadata[0].fileUrl ? 'exists' : 'missing'}` : 
+  'No photos with full metadata');
+
+// Modified photosWithTimeNoLocation and photosWithoutMetadata to preserve ALL properties
+const photosWithTimeNoLocation = validatedPhotos.filter(p => p.timeStamp !== null && 
+                                               (p.latitude === null || p.longitude === null));
+const photosWithoutMetadata = validatedPhotos.filter(p => p.timeStamp === null);
   
   console.log(`- Photos with full metadata: ${photosWithFullMetadata.length}`);
   console.log(`- Photos with time but no location: ${photosWithTimeNoLocation.length}`);
@@ -231,7 +239,15 @@ export function groupPhotosByTimeAndLocation(
   // Handle photos without metadata
   if (photosWithoutMetadata.length > 0) {
     console.log('===== HANDLING PHOTOS WITHOUT METADATA =====');
+    // Debug fileUrl before creating group
+    if (photosWithoutMetadata.length > 0) {
+      console.log(`First photo without metadata has fileUrl: ${photosWithoutMetadata[0].fileUrl ? 'Yes' : 'No'}`);
+    }
+    
     const noMetadataGroup = createGroupFromPhotos(photosWithoutMetadata);
+    // Double check the coverPhoto has fileUrl
+    console.log(`No metadata group coverPhoto fileUrl: ${noMetadataGroup.coverPhoto?.fileUrl ? 'exists' : 'missing'}`);
+    
     noMetadataGroup.location = "Unknown Location";
     groups.push(noMetadataGroup);
     console.log(`Created group for ${photosWithoutMetadata.length} photos without metadata, ID: ${noMetadataGroup.id.substring(0,8)}`);
@@ -262,18 +278,23 @@ function createGroupFromPhotos(photos: PhotoMetadata[]): PhotoGroup {
   // Generate a unique ID for the group
   const id = `group-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-  // Use the first photo as the cover photo
-  const coverPhoto = sortedPhotos[0];
+  // Use the first photo as the cover photo but explicitly make sure fileUrl is preserved
+  const coverPhoto = {
+    ...sortedPhotos[0],
+    fileUrl: sortedPhotos[0]?.fileUrl || ''
+  };
 
   // Extract time range
   const startTime = sortedPhotos[0]?.timeStamp || null;
   const endTime = sortedPhotos[sortedPhotos.length - 1]?.timeStamp || null;
 
+  console.log(`Cover photo fileUrl check: ${coverPhoto?.fileUrl ? 'URL exists' : 'Missing URL'}`);
+
   return {
     id,
     photos: sortedPhotos,
     coverPhoto,
-    location: '', // To be filled in later
+    location: '',
     rating: null,
     review: '',
     startTime,

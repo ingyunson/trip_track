@@ -47,6 +47,7 @@ interface PhotoContextType {
   reorderGroups: (newOrder: PhotoGroup[]) => void;
   setAiGeneratedText: (text: string) => void;
   setEditedText: (text: string | null) => void;
+  clearBlobUrls: () => void;
 }
 
 const PhotoContext = createContext<PhotoContextType | undefined>(undefined);
@@ -167,6 +168,14 @@ export const PhotoProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setGroups(newOrder);
   };
 
+  const clearBlobUrls = () => {
+    photos.forEach(photo => {
+      if (photo.fileUrl && photo.fileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(photo.fileUrl);
+      }
+    });
+  };
+
   function generateUniqueId() {
     return `group-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
@@ -188,7 +197,8 @@ export const PhotoProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       splitGroup,
       reorderGroups,
       setAiGeneratedText,
-      setEditedText
+      setEditedText,
+      clearBlobUrls
     }}>
       {children}
     </PhotoContext.Provider>
