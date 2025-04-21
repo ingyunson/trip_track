@@ -49,7 +49,13 @@ export function groupPhotosByTimeAndLocation(
   maxKmDiff: number = 5
 ): PhotoGroup[] {
   console.log('===== PHOTO GROUPING PROCESS STARTED =====');
-  console.log(`GROUPING: Processing ${photos.length} photos with parameters:`, { maxHoursDiff, maxKmDiff });
+  console.log(`GROUPING: Processing ${photos.length} photos`);
+  console.log('First photo sample:', photos.length > 0 ? {
+    id: photos[0].id,
+    fileName: photos[0].fileName,
+    hasTimeStamp: photos[0].timeStamp instanceof Date,
+    hasCoordinates: photos[0].latitude !== null && photos[0].longitude !== null
+  } : 'No photos');
   
   if (photos.length === 0) {
     console.log('GROUPING: No photos to process, returning empty array');

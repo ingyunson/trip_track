@@ -20,8 +20,11 @@ export interface PhotoMetadata {
 export interface Group {
   id: string;
   photos: PhotoMetadata[];
+  // Add missing coverPhoto property to match PhotoGroup
+  coverPhoto: PhotoMetadata;
   location: string;
-  rating: number;
+  // Fix: Make rating consistent with PhotoGroup by allowing null
+  rating: number | null;
   review: string;
   startTime: Date | null;
   endTime: Date | null;
@@ -103,13 +106,16 @@ export const PhotoProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       return a.timeStamp.getTime() - b.timeStamp.getTime();
     });
     
+    // Find the first non-null rating if available
+    const firstNonNullRating = groupsToMerge.find(g => g.rating !== null)?.rating || null;
+    
     // Create a new merged group
     const mergedGroup: PhotoGroup = {
       id: generateUniqueId(),
       photos: sortedPhotos,
-      coverPhoto: sortedPhotos[0],
+      coverPhoto: sortedPhotos[0],  // Make sure coverPhoto is set correctly
       location: groupsToMerge[0]?.location || '',
-      rating: groupsToMerge[0]?.rating || null,
+      rating: firstNonNullRating,
       review: groupsToMerge[0]?.review || '',
       startTime: sortedPhotos[0]?.timeStamp || null,
       endTime: sortedPhotos[sortedPhotos.length - 1]?.timeStamp || null

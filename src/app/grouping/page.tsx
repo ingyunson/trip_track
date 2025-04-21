@@ -39,15 +39,46 @@ export default function GroupingPage() {
       return;
     }
     
-    // Skip if we already have groups
-    if (groups.length > 0) {
-      return;
+    // Only run the grouping algorithm if we don't have groups yet
+    if (groups.length === 0) {
+      console.log('No groups found - running grouping algorithm with', photos.length, 'photos');
+      try {
+        const initialGroups = groupPhotosByTimeAndLocation(photos);
+        console.log('Grouping algorithm returned', initialGroups.length, 'groups');
+        
+        if (initialGroups.length === 0) {
+          // If algorithm returns no groups, create a default group
+          const defaultGroup: PhotoGroup = {
+            id: `group-${Date.now()}-default`,
+            photos: photos,
+            coverPhoto: photos[0],
+            location: 'Unknown Location',
+            rating: null,
+            review: '',
+            startTime: null,
+            endTime: null
+          };
+          setGroups([defaultGroup]);
+        } else {
+          setGroups(initialGroups);
+        }
+      } catch (error) {
+        console.error('Error in grouping algorithm:', error);
+        // Create a fallback group with all photos if the algorithm fails
+        const fallbackGroup: PhotoGroup = {
+          id: `group-${Date.now()}-fallback`,
+          photos: photos,
+          coverPhoto: photos[0],
+          location: 'Unknown Location',
+          rating: null,
+          review: '',
+          startTime: null,
+          endTime: null
+        };
+        setGroups([fallbackGroup]);
+      }
     }
-    
-    // Run the grouping algorithm
-    const initialGroups = groupPhotosByTimeAndLocation(photos);
-    setGroups(initialGroups);
-  }, [photos, groups.length, setGroups, router]);
+  }, [photos, router, setGroups, groups.length]);
   
   // Handle selecting groups for merge
   const handleSelectGroup = (groupId: string) => {

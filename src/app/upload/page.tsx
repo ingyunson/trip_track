@@ -48,6 +48,7 @@ const UploadPage = () => {
     const newPhotos = [];
     
     for (const file of files) {
+      console.log(`Processing file: ${file.name}`);
       // Validate file type and size
       if (!isValidFileType(file)) {
         toast({
@@ -103,6 +104,9 @@ const UploadPage = () => {
           fileName: file.name,
           fileSize: file.size,
           fileUrl,
+          timeStamp: null,  // Add this
+          latitude: null,   // Add this
+          longitude: null,  // Add this
           processed: true,
           processingError: `Failed to extract metadata: ${error.message}`,
           groupId: 'ungrouped'
@@ -111,6 +115,7 @@ const UploadPage = () => {
     }
     
     if (newPhotos.length > 0) {
+      console.log(`Adding ${newPhotos.length} new photos to state`);
       addPhotos(newPhotos);
     }
     
@@ -149,25 +154,9 @@ const UploadPage = () => {
       return;
     }
     
-    router.push('/group');
+    // Fix: Use consistent '/grouping' path everywhere
+    router.push('/grouping');
   }, [photos.length, toast, router]);
-
-  // Add or modify this function in your component
-  const handleContinue = useCallback(() => {
-    if (photos.length === 0) {
-      toast({
-        title: "No photos uploaded",
-        description: "Please upload at least one photo to continue.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    // Correct route for Next.js App Router
-    router.push('/group-info');
-  }, [photos.length, router, toast]);
 
   return (
     <>
@@ -205,7 +194,7 @@ const UploadPage = () => {
                 mt={6} 
                 colorScheme="teal" 
                 size="lg" 
-                onClick={handleContinue}
+                onClick={handleNext}
                 isDisabled={photos.length === 0}
                 width="100%"
               >
