@@ -191,8 +191,41 @@ export function groupPhotosByTimeAndLocation(
   // Handle photos with time but no location
   if (photosWithTimeNoLocation.length > 0) {
     console.log('===== HANDLING PHOTOS WITH TIME BUT NO LOCATION =====');
-    // Your existing code for handling these photos
-    console.log(`Created group(s) for ${photosWithTimeNoLocation.length} photos with time but no location`);
+    
+    // Sort by timestamp
+    const sortedTimeOnlyPhotos = [...photosWithTimeNoLocation].sort((a, b) => {
+      return a.timeStamp!.getTime() - b.timeStamp!.getTime();
+    });
+    
+    let currentGroup = [];
+    
+    // Group by time proximity only
+    for (let i = 0; i < sortedTimeOnlyPhotos.length; i++) {
+      const photo = sortedTimeOnlyPhotos[i];
+      
+      if (currentGroup.length === 0) {
+        currentGroup = [photo];
+        continue;
+      }
+      
+      const lastPhoto = currentGroup[currentGroup.length - 1];
+      const timeDiff = calculateTimeDifference(photo.timeStamp, lastPhoto.timeStamp);
+      
+      if (timeDiff <= maxHoursDiff) {
+        currentGroup.push(photo);
+      } else {
+        const newGroup = createGroupFromPhotos(currentGroup);
+        newGroup.location = "Unknown Location";
+        groups.push(newGroup);
+        currentGroup = [photo];
+      }
+    }
+    
+    if (currentGroup.length > 0) {
+      const newGroup = createGroupFromPhotos(currentGroup);
+      newGroup.location = "Unknown Location";
+      groups.push(newGroup);
+    }
   }
   
   // Handle photos without metadata
