@@ -122,16 +122,16 @@ const UploadPage = () => {
     setIsProcessing(false);
   }, [addPhotos, toast]);
 
-  // Clean up object URLs when component unmounts
-  useEffect(() => {
-    return () => {
-      photos.forEach(photo => {
-        if (photo.fileUrl && photo.fileUrl.startsWith('blob:')) {
-          URL.revokeObjectURL(photo.fileUrl);
-        }
-      });
-    };
-  }, [photos]);
+  // Comment out or remove this effect
+  // useEffect(() => {
+  //   return () => {
+  //     photos.forEach(photo => {
+  //       if (photo.fileUrl && photo.fileUrl.startsWith('blob:')) {
+  //         URL.revokeObjectURL(photo.fileUrl);
+  //       }
+  //     });
+  //   };
+  // }, [photos]);
 
   // Add this function to handle removing photos
   const handleRemovePhoto = useCallback((id: string) => {
