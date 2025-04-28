@@ -21,6 +21,23 @@ import Header from '@/components/Header';
 import GeneratingAnimation from '@/components/GeneratingAnimation';
 import { usePhotoContext } from '@/context/PhotoContext';
 
+// Add this helper function at the top level of your component
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        const base64 = reader.result.split(',')[1];
+        resolve(base64);
+      } else {
+        reject(new Error("Failed to convert file to base64"));
+      }
+    };
+    reader.onerror = error => reject(error);
+  });
+};
+
 export default function AIGenerationPage() {
   const router = useRouter();
   const toast = useToast();
@@ -48,17 +65,33 @@ export default function AIGenerationPage() {
     setError(null);
     
     try {
-      // Prepare the data for the API
-      const groupData = groups.map(group => ({
-        id: group.id,
-        group_name: group.location,
-        earliest_time_stamp: group.startTime?.toISOString(),
-        latest_time_stamp: group.endTime?.toISOString(),
-        rating: group.rating,
-        review: group.review,
-        representative_location: group.location,
-        photo_count: group.photos.length
+      // Prepare the data for the API with images
+      const groupData = await Promise.all(groups.map(async group => {
+        // Convert cover photo to base64 if available
+        let imageBase64 = null;
+        if (group.coverPhoto?.file) {
+          try {
+            imageBase64 = await fileToBase64(group.coverPhoto.file);
+            console.log(`Successfully encoded image for group: ${group.id}`);
+          } catch (error) {
+            console.error('Error converting image to base64:', error);
+          }
+        }
+        
+        return {
+          id: group.id,
+          group_name: group.location,
+          earliest_time_stamp: group.startTime?.toISOString(),
+          latest_time_stamp: group.endTime?.toISOString(),
+          rating: group.rating,
+          review: group.review,
+          representative_location: group.location,
+          photo_count: group.photos.length,
+          image_data: imageBase64 // Add the base64 image data
+        };
       }));
+      
+      console.log(`Prepared ${groupData.length} groups with images`);
       
       // Call the API to generate the travel log
       const response = await fetch('/api/generateLog', {

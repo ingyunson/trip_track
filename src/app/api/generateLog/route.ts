@@ -1,4 +1,3 @@
-// src/app/api/generateLog/route.ts
 import { NextResponse } from 'next/server';
 import { openai } from '@/lib/openaiClient';
 
@@ -11,86 +10,96 @@ interface TripGroup {
   review?: string;
   representative_location?: string;
   photo_count?: number;
+  image_data?: string;
 }
 
 export async function POST(request: Request) {
   try {
-    const { groupData } = await request.json() as { groupData: TripGroup[] };
+    const { groupData } = await request.json();
     
-    if (!groupData || !Array.isArray(groupData)) {
-      return NextResponse.json({ error: 'Group data array is required' }, { status: 400 });
-    }
-
-    // Build a more structured prompt for better results
-    const prompt = buildTravelLogPrompt(groupData);
-
-    // Call OpenAI (mock in this case)
+    // Create messages array with system message
+    const messages = [
+      { 
+        role: 'system', 
+        content: 'You are a travel writer who creates personal, subjective travel diaries. Write in first person, present tense, with vivid language about personal impressions.'
+      }
+    ];
+    
+    // Build user message with text and images
+    const userContent: any[] = [{
+      type: 'text',
+      text: `Create a subjective travel diary about these ${groupData.length} places I visited. Focus on emotions and impressions. Keep it under 500 characters.`
+    }];
+    
+    // Add each location's information and images
+    groupData.forEach((group: any) => {
+      userContent.push({
+        type: 'text',
+        text: `Place: ${group.group_name}${group.rating ? ` (${group.rating}★)` : ''}\nDate: ${formatDateRange(group.earliest_time_stamp, group.latest_time_stamp)}\n${group.review ? `Notes: "${group.review}"` : ''}`
+      });
+      
+      if (group.image_data) {
+        userContent.push({
+          type: 'image_url',
+          image_url: {
+            url: `data:image/jpeg;base64,${group.image_data}`,
+            detail: 'low'
+          }
+        });
+      }
+    });
+    
+    // Add final instruction
+    userContent.push({
+      type: 'text',
+      text: 'IMPORTANT: Your response must be 500 CHARACTERS OR LESS.'
+    });
+    
+    messages.push({ role: 'user', content: userContent });
+    
+    // Log how many images are actually being sent
+    const imageCount = userContent.filter(item => 
+      item.type === 'image_url' && item.image_url?.url
+    ).length;
+    console.log(`Including ${imageCount} images in the OpenAI request`);
+    
+    // Call OpenAI
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1500,
+      model: 'gpt-4o-mini', // This model supports vision
+      messages,
+      max_tokens: 200,
       temperature: 0.7,
     });
-
-    const aiContent = response.choices[0]?.message?.content;
-
+    
+    let aiContent = response.choices[0]?.message?.content;
+    
     if (!aiContent) {
       return NextResponse.json({ error: 'No response from AI' }, { status: 500 });
     }
-
-    // Return the AI-generated text
+    
+    // Enforce character limit
+    if (aiContent.length > 500) {
+      aiContent = aiContent.substring(0, 497) + '...';
+    }
+    
     return NextResponse.json({ aiText: aiContent }, { status: 200 });
   } catch (err: unknown) {
+    console.error('Error in generateLog:', err);
     if (err instanceof Error) {
-      console.error('Error generating travel log:', err);
       return NextResponse.json({ error: err.message }, { status: 500 });
-    } else {
-      return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
     }
+    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
 }
 
-// Helper function to build a better prompt for the OpenAI API
-function buildTravelLogPrompt(groupData: TripGroup[]): string {
-  // Sort groups by earliest_time_stamp
-  const sortedGroups = [...groupData].sort((a, b) => {
-    if (!a.earliest_time_stamp) return -1;
-    if (!b.earliest_time_stamp) return 1;
-    return new Date(a.earliest_time_stamp).getTime() - new Date(b.earliest_time_stamp).getTime();
-  });
+function formatDateRange(startDate?: string, endDate?: string): string {
+  if (!startDate) return "Unknown";
   
-  const locations = sortedGroups.map(g => g.group_name || g.representative_location || 'Unknown location').join(', ');
+  const start = new Date(startDate);
+  if (!endDate || startDate === endDate) {
+    return start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
   
-  const groupDescriptions = sortedGroups.map(group => {
-    const date = group.earliest_time_stamp 
-      ? new Date(group.earliest_time_stamp).toLocaleDateString('en-US', { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        })
-      : 'Unknown date';
-      
-    const rating = group.rating ? `Rating: ${group.rating}/5` : '';
-    const review = group.review ? `Review: "${group.review}"` : '';
-    
-    return `
-    Location: ${group.group_name || group.representative_location || 'Unnamed location'}
-    Date: ${date}
-    ${rating}
-    ${review}
-    `;
-  }).join('\n');
-
-  return `
-  Please write an engaging and personal travel log based on the following itinerary.
-  Write in first person as if you've visited these places. Create a cohesive narrative that flows
-  naturally between the locations. Incorporate the ratings and reviews into your narrative where provided.
-  
-  Itinerary Overview: ${locations}
-  
-  Detailed Itinerary:
-  ${groupDescriptions}
-  
-  Please format the travel log with appropriate sections. Make it personal, vivid, and engaging.
-  `;
+  const end = new Date(endDate);
+  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 }
