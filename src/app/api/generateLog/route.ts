@@ -17,6 +17,9 @@ export async function POST(request: Request) {
   try {
     const { groupData } = await request.json();
     
+    // Focus on a single group (the first one in the array)
+    const group = groupData[0];
+    
     // Create messages array with system message
     const messages = [
       { 
@@ -25,47 +28,43 @@ export async function POST(request: Request) {
       }
     ];
     
-    // Build user message with text and images
+    // Build user message with text and images for this specific group only
     const userContent: any[] = [{
       type: 'text',
-      text: `Create a subjective travel diary about these ${groupData.length} places I visited. Focus on emotions and impressions. Keep it under 500 characters.`
+      text: `Create a subjective travel diary about my visit to ${group.group_name}. Focus on emotions and impressions. Keep it under 500 characters.`
     }];
     
-    // Add each location's information and images
-    groupData.forEach((group: any) => {
-      userContent.push({
-        type: 'text',
-        text: `Place: ${group.group_name}${group.rating ? ` (${group.rating}★)` : ''}\nDate: ${formatDateRange(group.earliest_time_stamp, group.latest_time_stamp)}\n${group.review ? `Notes: "${group.review}"` : ''}`
-      });
-      
-      if (group.image_data) {
-        userContent.push({
-          type: 'image_url',
-          image_url: {
-            url: `data:image/jpeg;base64,${group.image_data}`,
-            detail: 'low'
-          }
-        });
-      }
-    });
-    
-    // Add final instruction
+    // Add location information for this specific group
     userContent.push({
       type: 'text',
-      text: 'IMPORTANT: Your response must be 500 CHARACTERS OR LESS.'
+      text: `Place: ${group.group_name}${group.rating ? ` (${group.rating}★)` : ''}\nDate: ${formatDateRange(group.earliest_time_stamp, group.latest_time_stamp)}\n${group.review ? `Notes: "${group.review}"` : ''}`
+    });
+    
+    // Add the image if available
+    if (group.image_data) {
+      userContent.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:image/jpeg;base64,${group.image_data}`,
+          detail: 'low'
+        }
+      });
+    }
+    
+    // Add instruction for this specific group
+    userContent.push({
+      type: 'text',
+      text: `IMPORTANT: Your response must be 500 CHARACTERS OR LESS. Write a personal diary entry about my experience at ${group.group_name}, mentioning what I saw and how I felt.`
     });
     
     messages.push({ role: 'user', content: userContent });
     
-    // Log how many images are actually being sent
-    const imageCount = userContent.filter(item => 
-      item.type === 'image_url' && item.image_url?.url
-    ).length;
-    console.log(`Including ${imageCount} images in the OpenAI request`);
+    // Log for debugging
+    console.log(`Generating diary for ${group.group_name} with ${group.image_data ? 'image' : 'no image'}`);
     
     // Call OpenAI
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // This model supports vision
+      model: 'gpt-4o-mini',
       messages,
       max_tokens: 200,
       temperature: 0.7,

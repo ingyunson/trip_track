@@ -34,6 +34,7 @@ interface PhotoContextType {
   photos: PhotoMetadata[];
   groups: PhotoGroup[];
   aiGeneratedText: string | null;
+  aiGeneratedTexts: Record<string, string>; // Map group ID to AI text
   editedText: string | null;
   addPhotos: (newPhotos: PhotoMetadata[]) => void;
   updatePhoto: (id: string, updates: Partial<PhotoMetadata>) => void;
@@ -48,6 +49,7 @@ interface PhotoContextType {
   setAiGeneratedText: (text: string) => void;
   setEditedText: (text: string | null) => void;
   clearBlobUrls: () => void;
+  setAiGeneratedTextForGroup: (groupId: string, text: string) => void;
 }
 
 const PhotoContext = createContext<PhotoContextType | undefined>(undefined);
@@ -55,8 +57,18 @@ const PhotoContext = createContext<PhotoContextType | undefined>(undefined);
 export const PhotoProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [photos, setPhotos] = useState<PhotoMetadata[]>([]);
   const [groups, setGroups] = useState<PhotoGroup[]>([]);
+  const [aiGeneratedTexts, setAiGeneratedTexts] = useState<Record<string, string>>({});
   const [aiGeneratedText, setAiGeneratedText] = useState<string | null>(null);
   const [editedText, setEditedText] = useState<string | null>(null);
+  
+
+    // Add new function to set AI text for specific group
+    const setAiGeneratedTextForGroup = (groupId: string, text: string) => {
+      setAiGeneratedTexts(prev => ({
+        ...prev,
+        [groupId]: text
+      }));
+    };
 
   const addPhotos = (newPhotos: PhotoMetadata[]) => {
     setPhotos(prevPhotos => [...prevPhotos, ...newPhotos]);
@@ -186,6 +198,8 @@ export const PhotoProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       groups,
       aiGeneratedText,
       editedText,
+      aiGeneratedTexts,
+      setAiGeneratedTextForGroup,
       addPhotos,
       updatePhoto,
       removePhoto,

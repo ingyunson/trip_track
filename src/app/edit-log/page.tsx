@@ -27,9 +27,8 @@ import { usePhotoContext } from '@/context/PhotoContext';
 export default function EditLogPage() {
   const router = useRouter();
   const toast = useToast();
-  const { groups, aiGeneratedText, setEditedText } = usePhotoContext();
-
-  const [content, setContent] = useState(aiGeneratedText || '');
+  const { groups, aiGeneratedTexts, setEditedText } = usePhotoContext();
+  const [combinedText, setCombinedText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
@@ -38,19 +37,30 @@ export default function EditLogPage() {
 
   // Redirect if no AI text is available
   useEffect(() => {
-    if (!aiGeneratedText) {
-      router.push('/ai-generation');
+    if (groups.length === 0) {
+      router.push('/group-info');
+      return;
     }
-  }, [aiGeneratedText, router]);
+    
+    // Combine all diaries with headers
+    const fullDiary = groups
+      .filter(group => aiGeneratedTexts[group.id])
+      .map(group => (
+        `# ${group.location}\n\n${aiGeneratedTexts[group.id]}\n\n`
+      ))
+      .join('\n');
+    
+    setCombinedText(fullDiary);
+  }, [groups, aiGeneratedTexts, router]);
 
   // Handle content changes from editor
   const handleContentChange = (newContent: string) => {
-    setContent(newContent);
+    setCombinedText(newContent);
   };
 
   // Handle save
   const handleSave = async () => {
-    if (!content.trim()) {
+    if (!combinedText.trim()) {
       toast({
         title: 'Cannot save empty content',
         description: 'Please add some text to your travel log',
@@ -77,7 +87,7 @@ export default function EditLogPage() {
       // if (!response.ok) throw new Error('Failed to save');
 
       // Save to context for now (simulating database save)
-      setEditedText(content);
+      setEditedText(combinedText);
 
       // Show success
       toast({
@@ -126,7 +136,7 @@ export default function EditLogPage() {
         : null;
         
       // Create a brief description from the edited text
-      const description = content
+      const description = combinedText
         .split('\n')
         .find(line => line.trim() && !line.startsWith('#'))
         ?.slice(0, 160) || "Check out my travel log!";
@@ -176,7 +186,7 @@ export default function EditLogPage() {
   };
 
   // If redirecting due to no content, show minimal loading UI
-  if (!aiGeneratedText) {
+  if (!aiGeneratedTexts) {
     return (
       <>
         <Header />
@@ -208,7 +218,7 @@ export default function EditLogPage() {
             </Alert>
 
             <RichTextEditor
-              initialValue={content}
+              initialValue={combinedText}
               onChange={handleContentChange}
               minHeight="500px"
             />
@@ -229,7 +239,7 @@ export default function EditLogPage() {
               colorScheme="blue"
               size="lg"
               onClick={handleShare}
-              isDisabled={!content.trim() || isSaving}
+              isDisabled={!combinedText.trim() || isSaving}
               isLoading={isSharing}
               loadingText="Creating link..."
               leftIcon={<Icon as={FiShare2} />}
